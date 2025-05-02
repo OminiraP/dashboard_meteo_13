@@ -1,4 +1,3 @@
-# DASHBOARD POUR RAILWAY (lecture depuis URL publique Google Drive)
 
 import dash
 from dash import dcc, html
@@ -8,13 +7,20 @@ import plotly.express as px
 import folium
 import base64
 from dash.dependencies import Input, Output, State
-import os
+from pyngrok import ngrok
+from google.colab import drive
+
+# Mount Drive
+drive.mount('/content/drive')
 
 # --- Load Data ---
-def load_and_preprocess_data(url):
+def load_and_preprocess_data(filepath):
     chunksize = 10000
     all_daily_avgs = []
-    for chunk in pd.read_csv(url, delimiter=';', chunksize=chunksize, on_bad_lines='skip'):
+    for chunk in pd.read_csv(filepath, delimiter=';', chunksize=chunksize, encoding='utf-8', on_bad_lines='skip'):
+        chunk.columns = chunk.columns.str.strip()
+        if 'AAAAMMJJHH' not in chunk.columns:
+            raise ValueError(f"Colonne 'AAAAMMJJHH' introuvable. Colonnes disponibles : {chunk.columns.tolist()}")
         chunk['AAAAMMJJHH'] = pd.to_datetime(chunk['AAAAMMJJHH'], format='%Y%m%d%H', errors='coerce')
         chunk.rename(columns={'AAAAMMJJHH': 'DATE'}, inplace=True)
         chunk['YEAR'] = chunk['DATE'].dt.year
@@ -26,31 +32,29 @@ def load_and_preprocess_data(url):
     daily_avg['DATE'] = pd.to_datetime(daily_avg[['YEAR', 'MONTH', 'DAY']].astype(str).agg('-'.join, axis=1))
     return daily_avg
 
-# ✅ Lecture depuis Google Drive (climat)
-daily_avg = load_and_preprocess_data("https://drive.google.com/uc?export=download&id=1N8dl2e1HM3FF429QjH9HbJ2RmKqQCxNE")
-
-
-
-def load_and_preprocess_fire_data(url):
-    df = pd.read_csv(url, sep=';', engine='python', on_bad_lines='skip')
+def load_and_preprocess_fire_data(filepath):
+    df = pd.read_csv(filepath, sep=';', engine='python', encoding='utf-8', on_bad_lines='skip')
+    df.columns = df.columns.str.strip()
+    if 'AAAAMMJJHH' not in df.columns:
+        raise ValueError(f"Colonne 'AAAAMMJJHH' introuvable. Colonnes disponibles : {df.columns.tolist()}")
     df['AAAAMMJJHH'] = pd.to_datetime(df['AAAAMMJJHH'], format='%Y%m%d%H', errors='coerce')
     df['Year'] = df['AAAAMMJJHH'].dt.year
     df['Month'] = df['AAAAMMJJHH'].dt.month
     df = df[df['Year'] >= 2010]
     return df
 
-# ✅ Lecture depuis Google Drive (feux)
-fire_df = load_and_preprocess_fire_data("https://drive.google.com/uc?export=download&id=1WyzURgAHqX8YNLL15N5NkeGMNjhUXqbc")
+daily_avg = load_and_preprocess_data('/content/drive/My Drive/conditions_meteos_horaire_13_2010_2020.csv')
+fire_df = load_and_preprocess_fire_data('/content/drive/My Drive/incendies_bdiff_13.csv')
 
 # --- Dash App Setup ---
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.LUX])
-server = app.server
 
 # Load logos
-with open("logo_meteofrance_dashboard.png", "rb") as image_file:
-    encoded_logo_meteo = base64.b64encode(image_file.read()).decode('ascii')
-with open("logo_amu_dashboard.png", "rb") as image_file:
-    encoded_logo_univ = base64.b64encode(image_file.read()).decode('ascii')
+logo_path_meteo = '/content/drive/My Drive/logo_meteofrance_dashboard.png'
+encoded_logo_meteo = base64.b64encode(open(logo_path_meteo, 'rb').read()).decode('ascii')
+
+logo_path_univ = '/content/drive/My Drive/logo_amu_dashboard.png'
+encoded_logo_univ = base64.b64encode(open(logo_path_univ, 'rb').read()).decode('ascii')
 
 # --- Layout ---
 app.layout = dbc.Container([
@@ -303,6 +307,3 @@ def update_fire_charts(n_clicks):
     )
 
     return fig_year, fig_month
-
-if __name__ == "__main__":
-    app.run_server(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 8050)))
