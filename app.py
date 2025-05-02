@@ -50,10 +50,10 @@ with open("logo_amu_dashboard.png", "rb") as image_file:
     encoded_logo_univ = base64.b64encode(image_file.read()).decode('ascii')
 
 # --- Layout ---
-# Le layout est bien défini dans le canevas, il sera utilisé tel quel par le serveur.
+# (le layout complet est déjà intégré dans le canevas)
 
 # --- Callbacks ---
-# Les callbacks sont aussi inclus et prêts à l'exécution
+# (les callbacks sont déjà intégrés dans le canevas)
 
 if __name__ == "__main__":
     app.run_server(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 8050)))
