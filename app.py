@@ -1,4 +1,3 @@
-
 import dash
 from dash import dcc, html
 import dash_bootstrap_components as dbc
@@ -7,16 +6,13 @@ import plotly.express as px
 import folium
 import base64
 from dash.dependencies import Input, Output, State
-from google.colab import drive
-
-# Mount Drive
-drive.mount('/content/drive')
+import os
 
 # --- Load Data ---
-def load_and_preprocess_data(filepath):
+def load_and_preprocess_data(url):
     chunksize = 10000
     all_daily_avgs = []
-    for chunk in pd.read_csv(filepath, delimiter=';', chunksize=chunksize, encoding='utf-8', on_bad_lines='skip'):
+    for chunk in pd.read_csv(url, delimiter=';', chunksize=chunksize, encoding='utf-8', on_bad_lines='skip'):
         chunk.columns = chunk.columns.str.strip()
         if 'AAAAMMJJHH' not in chunk.columns:
             raise ValueError(f"Colonne 'AAAAMMJJHH' introuvable. Colonnes disponibles : {chunk.columns.tolist()}")
@@ -31,8 +27,8 @@ def load_and_preprocess_data(filepath):
     daily_avg['DATE'] = pd.to_datetime(daily_avg[['YEAR', 'MONTH', 'DAY']].astype(str).agg('-'.join, axis=1))
     return daily_avg
 
-def load_and_preprocess_fire_data(filepath):
-    df = pd.read_csv(filepath, sep=';', engine='python', encoding='utf-8', on_bad_lines='skip')
+def load_and_preprocess_fire_data(url):
+    df = pd.read_csv(url, sep=';', engine='python', encoding='utf-8', on_bad_lines='skip')
     df.columns = df.columns.str.strip()
     if 'AAAAMMJJHH' not in df.columns:
         raise ValueError(f"Colonne 'AAAAMMJJHH' introuvable. Colonnes disponibles : {df.columns.tolist()}")
@@ -42,18 +38,19 @@ def load_and_preprocess_fire_data(filepath):
     df = df[df['Year'] >= 2010]
     return df
 
-daily_avg = load_and_preprocess_data('/content/drive/My Drive/conditions_meteos_horaire_13_2010_2020.csv')
-fire_df = load_and_preprocess_fire_data('/content/drive/My Drive/incendies_bdiff_13.csv')
+# --- Load Remote Data ---
+daily_avg = load_and_preprocess_data("https://drive.google.com/uc?export=download&id=1N8dl2e1HM3FF429QjH9HbJ2RmKqQCxNE")
+fire_df = load_and_preprocess_fire_data("https://drive.google.com/uc?export=download&id=1WyzURgAHqX8YNLL15N5NkeGMNjhUXqbc")
 
 # --- Dash App Setup ---
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.LUX])
+server = app.server
 
 # Load logos
-logo_path_meteo = '/content/drive/My Drive/logo_meteofrance_dashboard.png'
-encoded_logo_meteo = base64.b64encode(open(logo_path_meteo, 'rb').read()).decode('ascii')
-
-logo_path_univ = '/content/drive/My Drive/logo_amu_dashboard.png'
-encoded_logo_univ = base64.b64encode(open(logo_path_univ, 'rb').read()).decode('ascii')
+with open("logo_meteofrance_dashboard.png", "rb") as image_file:
+    encoded_logo_meteo = base64.b64encode(image_file.read()).decode('ascii')
+with open("logo_amu_dashboard.png", "rb") as image_file:
+    encoded_logo_univ = base64.b64encode(image_file.read()).decode('ascii')
 
 # --- Layout ---
 app.layout = dbc.Container([
