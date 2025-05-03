@@ -7,7 +7,6 @@ import plotly.express as px
 import folium
 import base64
 from dash.dependencies import Input, Output, State
-from pyngrok import ngrok
 from google.colab import drive
 
 # Mount Drive
@@ -307,3 +306,6 @@ def update_fire_charts(n_clicks):
     )
 
     return fig_year, fig_month
+
+if __name__ == '__main__':
+    app.run_server(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 8050)))
